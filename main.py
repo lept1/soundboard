@@ -3,21 +3,24 @@ import os
 import sys
 import vlc
 import time
+import readchar
 
 inputs = ['\'1\'', '\'2\'', '\'3\'', '\'4\'', '\'5\'', '\'6\'', '\'7\'', '\'8\'', '\'9\'', '\'0\'']
 special = ['\'*\'', '\'+\'', '\'-\'', '\'+\'', '\'/\'', '\'.\'']
 
-instance = vlc.Instance('--input-repeat=999999')
+instance = vlc.Instance('--input-repeat=0')
 player = instance.media_player_new()
+
+parent_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def loadPresets():
-	''' Get all the Presets in the current directory '''
+	"Get all the Presets in the directory of the main script "
 	l = []
-	for file in os.listdir(os.getcwd()):
-	    if file.endswith(".preset"):
-	        print("Preset Found:", os.path.join(os.getcwd(), file))
-	        l.append(os.path.join(os.getcwd(), file))
+	for file in os.listdir(parent_dir):
+		if file.endswith(".preset"):
+			print("Preset Found:", os.path.join(parent_dir, file))
+			l.append(os.path.join(parent_dir, file))
 	return l
 
 
@@ -35,43 +38,45 @@ def getPresetTracks(preset):
 	elif len(l) > 10:
 		print("Too many links. Cannot correctly populate.")
 		l = []
-	return l
+
+	complete_path = [os.path.join(parent_dir, track) for track in l]
+	return complete_path
 
 
-def isYouTubeAudio(link):
-	import re
-	if re.match(r'http[s]:\/\/www\.youtube\.com/watch\?v=([\w-]{11})', link) == None:
-		return False
-	else:
-		return True
+# def isYouTubeAudio(link):
+# 	import re
+# 	if re.match(r'http[s]:\/\/www\.youtube\.com/watch\?v=([\w-]{11})', link) == None:
+# 		return False
+# 	else:
+# 		return True
 	
 
-def getYouTubeAudioTrack(link):
-	''' Get Audio track of a link '''
-	import pafy
+# def getYouTubeAudioTrack(link):
+# 	''' Get Audio track of a link '''
+# 	import pafy
 
-	video = pafy.new(link)
-	bestaudio = video.getbestaudio()
+# 	video = pafy.new(link)
+# 	bestaudio = video.getbestaudio()
 
-	# print(bestaudio.url)
-	return bestaudio.url
+# 	# print(bestaudio.url)
+# 	return bestaudio.url
 
 
-def playQuick(num):
-	''' Make quick sound '''
-	l = ['up.mp3', 'down.mp3', 'preset_change.mp3', 'startup.mp3']
-	s = instance.media_new(os.path.join(os.getcwd(), l[num]))
-	player.set_media(s)
-	player.play()
-	if num == 3:
-		time.sleep(4)
-	else:
-		time.sleep(1)
-	player.stop()
+# def playQuick(num):
+# 	''' Make quick sound '''
+# 	l = ['up.mp3', 'down.mp3', 'preset_change.mp3', 'startup.mp3']
+# 	s = instance.media_new(os.path.join(os.getcwd(), l[num]))
+# 	player.set_media(s)
+# 	player.play()
+# 	if num == 3:
+# 		time.sleep(4)
+# 	else:
+# 		time.sleep(1)
+# 	player.stop()
 
 
 def switchPresets(readyPresets):
-	playQuick(2)
+	#playQuick(2)
 	
 	print("Ready to swap the preset. Loaded presets:")
 	i = 0
@@ -79,23 +84,24 @@ def switchPresets(readyPresets):
 		print(i, "-", link)
 		i += 1
 
-	newPreset = input("What would you like your preset to be?: ")
+	print("Select a new preset:")
+	newPreset = repr(readchar.readkey())
 	
 	if newPreset.isdigit() and int(newPreset) < len(presetList):
 		# Number preset. We're goood
 		numPre = int(newPreset)
 		print("New Preset: ", numPre)
-		playQuick(0)
+		#playQuick(0)
 		return numPre
 	else:
 		# It's a character. Stop
 		print("Invalid preset. Skipping.")
-		playQuick(1)
+		#playQuick(1)
 		return None
 		
 
 def playTrack(track):
-	''' Play an audio track indefinetly. Also awaits response so it can detect a change in information '''
+	''' Play an audio track once and stop.'''
 	from readchar import readkey
 
 	# Load and add media file
@@ -114,15 +120,30 @@ def playTrack(track):
 
 
 if __name__ == '__main__':
+	print("Starting...")
+	print(r'''
+ _____                       _______                     _ 
+/  ___|                     | | ___ \                   | |
+\ `--.  ___  _   _ _ __   __| | |_/ / ___   __ _ _ __ __| |
+ `--. \/ _ \| | | | '_ \ / _` | ___ \/ _ \ / _` | '__/ _` |
+/\__/ / (_) | |_| | | | | (_| | |_/ / (_) | (_| | | | (_| |
+\____/ \___/ \__,_|_| |_|\__,_\____/ \___/ \__,_|_|  \__,_|
+                                                           
+                                                           ''')
+
 	presetList = loadPresets()
-	preset = getPresetTracks(presetList[0])
+	print("Choosing initial preset...")
+	initialPreset = readchar.readkey()
+	print("Initial preset selected:", initialPreset)
+	if initialPreset.isdigit() and int(initialPreset) < len(presetList):
+		initialPreset = int(initialPreset)
+	else:
+		initialPreset = 0
+		print("Invalid initial preset. Defaulting to 0.")
+	preset = getPresetTracks(presetList[initialPreset])
 	
 	# Start Up and initial setup
 	active = False
-	
-	playQuick(3)
-
-	import readchar
 
 	keyInput = '\'0\''
 	# Start Main loop
@@ -134,13 +155,12 @@ if __name__ == '__main__':
 		if keyInput in inputs:
 			# Play sound
 			santized = int(keyInput[1])
+			selected_track = preset[santized]
+			print("Input", keyInput, "->", os.path.basename(selected_track))
 			player.stop()
 			active = True
-			# print(preset[santized])
-			if isYouTubeAudio(preset[santized]):
-				playTrack(getYouTubeAudioTrack(preset[santized]))
-			else:
-				playTrack(preset[santized])
+
+			playTrack(selected_track)
 
 		# Special Characters
 		elif keyInput == special[0]: # '\'*\'
@@ -165,4 +185,3 @@ if __name__ == '__main__':
 		elif keyInput == '\'x\'':
 			# End case
 			exit() 
-
